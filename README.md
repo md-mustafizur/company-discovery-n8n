@@ -4,7 +4,7 @@ Send a plain-language request to a Telegram bot, for example **"Find 5 accountin
 
 > Personal practice project built while learning n8n and AI automation. It is not client work.
 
-**Demo video:** <!-- paste your LinkedIn post link here -->
+**Demo video:** https://lnkd.in/p/g34cH8p3
 
 ## Screenshots
 

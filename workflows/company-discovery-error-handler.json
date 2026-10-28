@@ -1,0 +1,216 @@
+{
+  "name": "Company Discovery - Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        64
+      ],
+      "id": "149a714e-24e2-41f2-b7af-7ca4e2590426",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sanitize Error - Run Once for All Items\n\n// Admin chat that receives critical failure alerts (change here if the admin changes)\nconst ADMIN_CHAT_ID = 0; // replace 0 with your own Telegram chat ID\n\n// Remove anything that looks like a secret and shorten the text\nfunction sanitize(text) {\n  return String(text || 'No error message')\n    .replace(/Bearer\\s+[A-Za-z0-9\\-._~+\\/]+=*/gi, 'Bearer [REDACTED]')\n    .replace(/(api[_-]?key|token|authorization|secret)[\"'\\s:=]+[A-Za-z0-9\\-._~+\\/]{8,}/gi, '$1=[REDACTED]')\n    .replace(/\\b(sk|apify_api|xox[a-z])[-_A-Za-z0-9]{10,}/gi, '[REDACTED]')\n    .replace(/\\s+/g, ' ')\n    .slice(0, 300);\n}\n\n// Telegram reads _ * ` [ ] as formatting, which can break or distort the alert\nfunction plainForTelegram(text) {\n  return String(text).replace(/[_*`\\[\\]]/g, ' ');\n}\n\nconst data = $input.first().json;\nconst execution = data.execution || {};\nconst workflow = data.workflow || {};\nconst error = execution.error || {};\n\nconst safeMessage = sanitize(error.message);\nconst failedNode = execution.lastNodeExecuted || 'unknown';\n\nconst alertText = plainForTelegram([\n  'CRITICAL: workflow failed',\n  'Workflow: ' + (workflow.name || 'unknown'),\n  'Failed at node: ' + failedNode,\n  'Error: ' + safeMessage,\n  'Execution ID: ' + (execution.id || 'n/a'),\n  'Details: ' + (execution.url || 'n/a')\n].join('\\n'));\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    workflow_name: workflow.name || 'unknown',\n    execution_id: String(execution.id || ''),\n    stage: failedNode,\n    company_url: null,\n    error_code: 'WORKFLOW_ERROR',\n    sanitized_error_message: safeMessage,\n    retry_count: 0,\n    resolved_status: 'open',\n    chat_id: ADMIN_CHAT_ID,\n    alert_text: alertText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        64
+      ],
+      "id": "c2a122dd-dda5-4d9c-ac75-ad6cf7ffd947",
+      "name": "Sanitize Error"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 158600921,
+          "mode": "list",
+          "cachedResultName": "Errors"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "stage": "={{ $json.stage }}",
+            "company_url": "={{ $json.company_url }}",
+            "error_code": "={{ $json.error_code }}",
+            "sanitized_error_message": "={{ $json.sanitized_error_message }}",
+            "retry_count": "={{ $json.retry_count }}",
+            "resolved_status": "={{ $json.resolved_status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_url",
+              "displayName": "company_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_code",
+              "displayName": "error_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sanitized_error_message",
+              "displayName": "sanitized_error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resolved_status",
+              "displayName": "resolved_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        -32
+      ],
+      "id": "c1fc2236-ec0a-4f37-9b9a-a387c1e5897c",
+      "name": "Log Workflow Error"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.alert_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        160
+      ],
+      "id": "a8d59a9d-5f77-4ebf-b8aa-3107bb4e4df0",
+      "name": "Send Admin Alert",
+      "webhookId": "a0ffb08e-e748-4cec-a994-277b6a252169",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Error": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Error",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Admin Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "11202edc-c3bd-4da1-a4f0-55a7435773bf",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "3uwncf6WZpc0PtsG",
+  "tags": []
+}

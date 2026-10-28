@@ -1,0 +1,2196 @@
+{
+  "name": "Company Discovery and Enrichment",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -944,
+        -2400
+      ],
+      "id": "208bc831-d518-4184-a63d-3053ce057d6f",
+      "name": "Telegram Trigger",
+      "webhookId": "a8a3aae0-52d8-4304-8f4d-54a2fb00e902"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "18f36596-b3b6-4393-857d-f30104302196",
+              "name": "request_text",
+              "value": "={{ ($json.message?.text || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "ef073cfc-ca13-44da-835f-d856f49fe755",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "b07b3e65-3395-42fe-ba08-1b16959eceb5",
+              "name": "requester_id",
+              "value": "={{ $json.message.from.id }}",
+              "type": "number"
+            },
+            {
+              "id": "c4cdc48a-62c3-4bf3-983c-52e2e3500879",
+              "name": "message_id",
+              "value": "={{ $json.message.message_id }}",
+              "type": "number"
+            },
+            {
+              "id": "c1094ae3-af42-4be8-9293-1396d6c9e697",
+              "name": "request_id",
+              "value": "={{ $json.message.chat.id }}-{{ $json.message.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f1c0ef96-7b01-4e30-912b-81e5e48fd313",
+              "name": "received_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -720,
+        -2400
+      ],
+      "id": "3f3278ea-3f26-4614-a139-6a7b3f149b27",
+      "name": "Map Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b18978b-b870-4797-a26e-66de8308961a",
+              "leftValue": "={{ $json.requester_id }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -496,
+        -2400
+      ],
+      "id": "42eed8bc-6d85-4e9c-8144-348d3d2aa605",
+      "name": "Authorize User"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Sorry, you are not authorized to use this bot.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -272,
+        -2304
+      ],
+      "id": "bcf8d5fb-b6e3-4193-9001-5bec11bdec21",
+      "name": "Reject Unauthorized",
+      "webhookId": "e09ac25c-aedf-4085-8b88-541ef5ea2a42"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.request_text }}"
+            },
+            {
+              "role": "system",
+              "content": "You extract search criteria from a user's message.\nReturn ONLY a JSON object with exactly these keys, using underscores exactly as written:\n- company_type_or_niche (string or null)\n- geography (string or null)\n- requested_count (integer or null)\n- clarification_needed (boolean)\n- clarification_question (string or null)\n\nDefinitions:\n- company_type_or_niche: the kind of business or industry the user wants to find, for example \"skincare companies\", \"logistics companies\", \"accounting firms\". If the message names ANY kind of business or industry, you MUST fill this field with it.\n- geography: a country, state or city named in the message.\n- requested_count: the number of companies the user asks for.\n\nRules:\n- Use only what is written in the message. Never guess or invent details.\n- A value is null ONLY when the message truly does not contain it.\n- Missing geography is allowed. Do not ask a question about it.\n- Set clarification_needed to true ONLY when the location is vague (for example \"near me\" or \"around here\"). Then write one short question in clarification_question.\n- Do not add any text outside the JSON.\n\nExamples:\nMessage: Find 30 skincare companies in the USA\n{\"company_type_or_niche\":\"skincare companies\",\"geography\":\"USA\",\"requested_count\":30,\"clarification_needed\":false,\"clarification_question\":null}\n\nMessage: Find 20 logistics companies\n{\"company_type_or_niche\":\"logistics companies\",\"geography\":null,\"requested_count\":20,\"clarification_needed\":false,\"clarification_question\":null}\n\nMessage: Find logistics companies\n{\"company_type_or_niche\":\"logistics companies\",\"geography\":null,\"requested_count\":null,\"clarification_needed\":false,\"clarification_question\":null}\n\nMessage: hello\n{\"company_type_or_niche\":null,\"geography\":null,\"requested_count\":null,\"clarification_needed\":false,\"clarification_question\":null}\n\nMessage: Find fintech companies near me\n{\"company_type_or_niche\":\"fintech companies\",\"geography\":null,\"requested_count\":null,\"clarification_needed\":true,\"clarification_question\":\"Which city or country should I search in?\"}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -48,
+        -2592
+      ],
+      "id": "a527ac95-5666-4235-985d-ed2f5da96601",
+      "name": "Parse Request"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const MIN_COUNT = 1;\nconst MAX_COUNT = 50;\n\nconst req = $('Map Request').item.json;\nconst raw = $json.output?.[0]?.content?.[0]?.text;\n\nlet parsed = null;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = null;\n}\n\nconst base = {\n  chat_id: req.chat_id,\n  request_id: req.request_id,\n  request_text: req.request_text,\n};\n\nfunction invalid(message) {\n  const hint = ' Please send your full request again, for example: \"Find 20 logistics companies in Canada\".';\n  return { json: { ...base, valid: false, clarification_message: message + hint } };\n}\n\nif (!parsed || typeof parsed !== 'object') {\n  return invalid('Sorry, I could not understand your request. Example: Find 20 logistics companies in Canada.');\n}\n\nconst REQUIRED_KEYS = [\n  'company_type_or_niche',\n  'geography',\n  'requested_count',\n  'clarification_needed',\n  'clarification_question',\n];\nconst missingKeys = REQUIRED_KEYS.filter((k) => !(k in parsed));\n\nif (missingKeys.length > 0) {\n  return {\n    json: {\n      ...base,\n      valid: false,\n      clarification_message: 'Sorry, something went wrong while reading your request. Please try again.',\n      debug_reason: 'missing_keys: ' + missingKeys.join(', '),\n    },\n  };\n}\n\nif (parsed.clarification_needed === true) {\n  return invalid(parsed.clarification_question || 'Could you give me more details about the companies you want?');\n}\n\nconst niche = String(parsed.company_type_or_niche ?? '').trim();\nconst geography = String(parsed.geography ?? '').trim();\n\nif (!niche) {\n  return invalid('What type of companies should I look for?');\n}\n\nif (parsed.requested_count === null || parsed.requested_count === undefined) {\n  return invalid(`How many companies do you want? Please choose a number between ${MIN_COUNT} and ${MAX_COUNT}.`);\n}\n\nconst count = Number(parsed.requested_count);\n\nif (!Number.isInteger(count) || count < MIN_COUNT || count > MAX_COUNT) {\n  return invalid(`Please choose a number between ${MIN_COUNT} and ${MAX_COUNT}.`);\n}\n\nreturn {\n  json: {\n    ...base,\n    valid: true,\n    company_type_or_niche: niche,\n    geography: geography || null,\n    requested_count: count,\n    search_query: [niche, geography].filter(Boolean).join(' '),\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -2592
+      ],
+      "id": "c6f008f9-3bc2-4062-91df-dc54e8a049ce",
+      "name": "Validate Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "458d33a5-8b0c-4bc0-a0e1-fc6a1f21a4e7",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        528,
+        -2592
+      ],
+      "id": "038f63bd-c44b-4730-b6bd-c0d610519dfb",
+      "name": "Is Request Valid?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.clarification_message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        -2496
+      ],
+      "id": "b9a911fa-11ba-418b-ae20-8a56b07a8222",
+      "name": "Ask Clarification",
+      "webhookId": "2b4b7579-9c43-4a06-b694-b922176a3d29"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.search_query }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        752,
+        -2688
+      ],
+      "id": "324eeb1d-323c-4796-b95f-6a3435aa7c96",
+      "name": "Search Companies",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 3: classify each result (company_site / list_page / skip)\nconst serper = $input.first().json;\nconst organic = serper.organic || [];\nconst request = $('Is Request Valid?').first().json;\n\n// Editable rule lists\nconst SKIP_DOMAINS = ['youtube.com', 'facebook.com', 'instagram.com', 'linkedin.com',\n                      'twitter.com', 'x.com', 'tiktok.com', 'pinterest.com', 'reddit.com'];\nconst LIST_URL_HINTS = ['/blog', '/news/', '/wiki/', '/brands-list', '/ratings/',\n                        '/category', '/top-', '/best-'];\nconst LIST_TITLE_WORDS = ['top ', 'best ', 'biggest', 'list of', 'most popular',\n                          'category:', 'brands'];\n\nfunction parseWebsite(value) {\n  if (!value) return { url: null, domain: null, error: 'empty link' };\n  let raw = String(value).trim();\n  if (!/^https?:\\/\\//i.test(raw)) raw = `https://${raw}`;\n  const m = raw.match(/^(https?):\\/\\/([^\\/?#:]+)/i);\n  if (!m) return { url: null, domain: null, error: 'invalid http/https URL' };\n  const host = m[2].toLowerCase();\n  return { url: `${m[1].toLowerCase()}://${host}`, domain: host.replace(/^www\\./, ''), error: null };\n}\n\nfunction classify(domain, sourceUrl, title) {\n  if (!domain) return { type: 'skip', reason: 'no valid domain' };\n  if (SKIP_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))) {\n    return { type: 'skip', reason: 'social/video platform' };\n  }\n  const url = (sourceUrl || '').toLowerCase();\n  const t = (title || '').toLowerCase();\n  if (LIST_URL_HINTS.some(h => url.includes(h))) {\n    return { type: 'list_page', reason: 'URL looks like article/list page' };\n  }\n  if (LIST_TITLE_WORDS.some(w => t.includes(w))) {\n    return { type: 'list_page', reason: 'title looks like a list' };\n  }\n  return { type: 'company_site', reason: 'no list/platform signal found' };\n}\n\nreturn organic.map(r => {\n  const parsed = parseWebsite(r.link);\n  const c = classify(parsed.domain, r.link, r.title);\n  return {\n    json: {\n      request_id: request.request_id,\n      chat_id: request.chat_id,\n      requested_count: request.requested_count,\n      title: r.title || null,\n      source_url: r.link || null,\n      website_url: parsed.url,\n      normalized_domain: parsed.domain,\n      result_type: c.type,\n      classification_reason: c.reason,\n      url_error: parsed.error,\n      snippet: r.snippet || null,\n      position: r.position\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        -2688
+      ],
+      "id": "b2a24ff4-ee1a-4cf9-9c14-4b6668a88104",
+      "name": "Normalize Search Results"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result_type }}",
+                    "rightValue": "company_site",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5e066d40-f0d8-4247-9ef9-55f5b4f3c801"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Company Site"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e8bfcfbc-12d2-4884-ab43-65557d705c26",
+                    "leftValue": "={{ $json.result_type }}",
+                    "rightValue": "list_page",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "List Page"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "750c152d-d1f0-44a4-abae-9cc23c2361c1",
+                    "leftValue": "={{ $json.result_type }}",
+                    "rightValue": "skip",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Skip"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -2704
+      ],
+      "id": "69db0b25-77cc-487a-b541-9942b564864c",
+      "name": "Route by Result Type"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-5-5",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-5-5"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Title: {{ $json.title }}\nSnippet: {{ $json.snippet }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You extract company or brand names from a search result's title and snippet.  Rules: 1. Return ONLY names that literally appear in the provided text. 2. Do NOT add or guess names from your own knowledge. 3. Ignore section letters (like \"A\", \"B\"), people's names, and generic words. 4. If there are no company names, return an empty list.  Return JSON only, no extra text: {\"companies\": [\"Name 1\", \"Name 2\"]}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        -2608
+      ],
+      "id": "96424eec-6484-41ce-bad8-9b1046e010c5",
+      "name": "Extract Company Names",
+      "executeOnce": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Company Names: 1 LLM result -> N company items\nconst llmItems = $input.all();\nconst output = [];\n\nfor (let i = 0; i < llmItems.length; i++) {\n  const content = llmItems[i].json.content || [];\n\n  // find the text block by type (never rely on position)\n  const textBlock = content.find(b => b.type === 'text');\n  const rawText = textBlock ? textBlock.text : null;\n\n  // matching list_page item (carries title, source_url, request_id ...)\n  let src = {};\n  try {\n    src = $('Route by Result Type').itemMatching(i).json;\n  } catch (e) {\n    src = {};\n  }\n\n  let names = [];\n  let parseError = null;\n\n  if (!rawText) {\n    parseError = 'no text block in LLM output';\n  } else {\n    try {\n      const parsed = JSON.parse(rawText);\n      names = Array.isArray(parsed.companies) ? parsed.companies : [];\n    } catch (e) {\n      parseError = 'invalid JSON from LLM: ' + String(e.message || e);\n    }\n  }\n\n  // never fail silently: record the problem as a visible item\n  if (parseError) {\n    output.push({ json: {\n      request_id: src.request_id || null,\n      chat_id: src.chat_id || null,\n      requested_count: src.requested_count || null,\n      company_name: null,\n      name_source_url: src.source_url || null,\n      name_source_title: src.title || null,\n      source_found: !!src.source_url,\n      parse_error: parseError\n    }});\n    continue;\n  }\n\n  for (const n of names) {\n    const name = String(n || '').trim();\n    if (!name) continue;\n    output.push({ json: {\n      request_id: src.request_id || null,\n      chat_id: src.chat_id || null,\n      requested_count: src.requested_count || null,\n      company_name: name,\n      name_source_url: src.source_url || null,\n      name_source_title: src.title || null,\n      source_found: !!src.source_url,\n      parse_error: null\n    }});\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        -2608
+      ],
+      "id": "256084b7-af74-4b81-a481-6a59f3aee27c",
+      "name": "Parse Company Names"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Company Candidates: dedupe names, cap the count, build search query\nconst items = $input.all();\n\n// Setting: how many extra names to try (some will fail later)\nconst BUFFER_FACTOR = 2;\n\nfunction normName(s) {\n  return String(s || '')\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '') // remove accents (Colé -> cole)\n    .replace(/&/g, ' and ')\n    .replace(/\\b(inc|llc|ltd|co|corp|corporation|company)\\b\\.?/g, ' ')\n    .replace(/[^a-z0-9]+/g, ' ')\n    .trim();\n}\n\nconst requested = items.length ? (Number(items[0].json.requested_count) || 5) : 5;\nconst maxCandidates = requested * BUFFER_FACTOR;\n\nconst seen = new Set();\nconst out = [];\n\nfor (const item of items) {\n  const d = item.json;\n  if (!d.company_name) continue; // rows with parse_error have no name\n  const key = normName(d.company_name);\n  if (!key || seen.has(key)) continue;\n  seen.add(key);\n  if (out.length >= maxCandidates) break;\n\n  out.push({ json: {\n    request_id: d.request_id,\n    chat_id: d.chat_id,\n    requested_count: d.requested_count,\n    company_name: d.company_name,\n    normalized_name: key,\n    search_query: `${d.company_name} official website`,\n    names_found_total: items.length,\n    name_source_url: d.name_source_url,\n    name_source_title: d.name_source_title\n  }});\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -2608
+      ],
+      "id": "1af2436d-1752-422b-9912-16e5ccb3182d",
+      "name": "Prepare Company Candidates"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.search_query }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 3
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2224,
+        -2608
+      ],
+      "id": "edc5b82b-405f-4c27-ad0f-655eaf275912",
+      "name": "Find Company Website",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pick Company Website: choose the official site for each company\n\nconst BLOCKED_DOMAINS = [\n  'wikipedia.org', 'instagram.com', 'facebook.com', 'linkedin.com',\n  'reddit.com', 'youtube.com', 'x.com', 'twitter.com', 'tiktok.com',\n  'pinterest.com', 'sephora.com', 'ulta.com', 'amazon.com',\n  'target.com', 'walmart.com', 'ebay.com', 'crunchbase.com',\n  'pitchbook.com', 'trustpilot.com'\n];\n\nfunction getOrigin(url) {\n  const m = String(url || '').match(/^(https?:\\/\\/[^\\/?#]+)/i);\n  return m ? m[1].toLowerCase() : null;\n}\n\nfunction getDomain(url) {\n  const origin = getOrigin(url);\n  if (!origin) return null;\n  return origin.replace(/^https?:\\/\\//, '').replace(/:\\d+$/, '').replace(/^www\\./, '');\n}\n\nfunction isBlocked(domain) {\n  return BLOCKED_DOMAINS.some(b => domain === b || domain.endsWith('.' + b));\n}\n\nfunction nameMatches(domain, normalizedName) {\n  const name = String(normalizedName || '');\n  const compactName = name.replace(/[^a-z0-9]/g, '');\n  const compactDomain = domain.replace(/[^a-z0-9]/g, '');\n\n  const labelMatch = domain.split('.').some(label => {\n    const l = label.replace(/-/g, '');\n    return l.length >= 4 && compactName.includes(l);\n  });\n\n  const wordMatch = name.split(' ').some(w => w.length >= 4 && compactDomain.includes(w));\n\n  return labelMatch || wordMatch;\n}\n\n// Look up company details from the earlier node, using search_query as the key\nconst candidates = $('Prepare Company Candidates').all();\nconst byQuery = new Map();\nfor (const c of candidates) {\n  byQuery.set(c.json.search_query, c.json);\n}\n\nconst out = [];\n\nfor (const item of $input.all()) {\n  const q = item.json.searchParameters ? item.json.searchParameters.q : null;\n  const company = byQuery.get(q) || {};\n  const organic = Array.isArray(item.json.organic) ? item.json.organic : [];\n\n  let picked = null;\n  for (const r of organic) {\n    const domain = getDomain(r.link);\n    if (!domain || isBlocked(domain)) continue;\n    if (!nameMatches(domain, company.normalized_name)) continue;\n    picked = {\n      website_url: getOrigin(r.link),\n      normalized_domain: domain,\n      position: r.position\n    };\n    break;\n  }\n\n  out.push({ json: {\n    request_id: company.request_id || null,\n    chat_id: company.chat_id || null,\n    requested_count: company.requested_count || null,\n    company_name: company.company_name || null,\n    normalized_name: company.normalized_name || null,\n    search_query: q,\n    organic_count: organic.length,\n    website_url: picked ? picked.website_url : null,\n    normalized_domain: picked ? picked.normalized_domain : null,\n    picked_position: picked ? picked.position : null,\n    website_status: picked ? 'found' : 'needs_review',\n    review_reason: picked ? null : 'No official website found in search results'\n  }});\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        -2608
+      ],
+      "id": "56eb61ed-7881-43fb-a4b4-0327aa7c1684",
+      "name": "Pick Company Website"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2672,
+        -2688
+      ],
+      "id": "baa4851e-74f3-4fa3-a6a4-0bcf6fef4575",
+      "name": "Combine Company Sources"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean Company List: unify fields, remove duplicate domains, keep the requested number\n\nconst items = $input.all();\n\n// 1) Put every item into the same shape\nconst records = items.map(it => {\n  const d = it.json;\n  const hasName = Boolean(d.company_name);\n  const hasSite = Boolean(d.website_url && d.normalized_domain);\n\n  let status = d.website_status || 'found';\n  let reason = d.review_reason || null;\n\n  if (hasSite && !hasName) {\n    status = 'needs_review';\n    reason = 'Company name not confirmed: site came directly from a search result';\n  }\n\n  return {\n    request_id: d.request_id || null,\n    chat_id: d.chat_id || null,\n    requested_count: d.requested_count || null,\n    company_name: hasName ? d.company_name : null,\n    website_url: hasSite ? d.website_url : null,\n    normalized_domain: hasSite ? d.normalized_domain : null,\n    website_status: hasSite ? status : 'needs_review',\n    review_reason: hasSite ? reason : (reason || 'No official website found in search results'),\n    source_url: d.source_url || d.website_url || null,\n    page_title: d.title || null\n  };\n});\n\n// 2) Sort: confirmed sites first, then sites needing review, then no site\nfunction priority(r) {\n  if (r.website_url && r.website_status === 'found') return 0;\n  if (r.website_url) return 1;\n  return 2;\n}\nrecords.sort((a, b) => priority(a) - priority(b));\n\n// 3) How many companies were requested?\nconst withCount = records.find(r => r.requested_count);\nconst limit = withCount ? Number(withCount.requested_count) : records.length;\n\n// 4) Remove duplicate domains and keep only the requested number\nconst seen = new Set();\nconst selected = [];\nconst reviewOnly = [];\nlet duplicates = 0;\nlet overflow = 0;\n\nfor (const r of records) {\n  if (!r.normalized_domain) {\n    reviewOnly.push(r);\n    continue;\n  }\n  if (seen.has(r.normalized_domain)) {\n    duplicates++;\n    continue;\n  }\n  seen.add(r.normalized_domain);\n  if (selected.length < limit) {\n    selected.push(r);\n  } else {\n    overflow++;\n  }\n}\n\nconst output = [\n  ...selected.map(r => ({ json: { ...r, next_action: 'scrape', duplicates_removed: duplicates, skipped_over_limit: overflow } })),\n  ...reviewOnly.map(r => ({ json: { ...r, next_action: 'save_for_review', duplicates_removed: duplicates, skipped_over_limit: overflow } }))\n];\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        -2688
+      ],
+      "id": "b1f568b2-9106-46b3-b486-9ee987f28bb1",
+      "name": "Clean Company List"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5006071a-bb85-4382-85dd-f337eb52022b",
+              "leftValue": "={{ $json.next_action }}",
+              "rightValue": "scrape",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3120,
+        -2688
+      ],
+      "id": "6dd5eaac-1024-476e-983b-fc00e0cecda8",
+      "name": "Has Website to Scrape?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Apify Input: put all companies to scrape into ONE Apify request\n// Crawl scope: homepage only (maxCrawlDepth 0)\n\nconst items = $input.all();\nif (items.length === 0) return [];\n\nconst companies = items.map(it => ({\n  company_name: it.json.company_name,\n  website_url: it.json.website_url,\n  normalized_domain: it.json.normalized_domain\n}));\n\nconst first = items[0].json;\n\nreturn [{\n  json: {\n    request_id: first.request_id,\n    chat_id: first.chat_id,\n    company_count: companies.length,\n    apify_input: {\n      startUrls: companies.map(c => ({ url: c.website_url })),\n      maxCrawlDepth: 0,\n      maxCrawlPages: companies.length * 2\n    },\n    companies: companies\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3344,
+        -2784
+      ],
+      "id": "f7a22aee-3e1e-45ac-af17-6b6cbfd184a8",
+      "name": "Build Apify Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/actors/apify~website-content-crawler/runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "maxTotalChargeUsd",
+              "value": "1"
+            },
+            {
+              "name": "timeout",
+              "value": "600"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.apify_input) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4192,
+        -2528
+      ],
+      "id": "1e9cc5bf-8045-4130-bcaa-a75e790ea372",
+      "name": "Start Apify Crawl"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4416,
+        -2528
+      ],
+      "id": "bac1f243-dbd3-4734-b557-3ae5a3101f1a",
+      "name": "Wait Before Poll",
+      "webhookId": "3edec455-bfd4-45d5-a4cd-467fdf11a69e"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.apify.com/v2/actor-runs/{{ $('Start Apify Crawl').first().json.data.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4640,
+        -2592
+      ],
+      "id": "afed32fa-7d53-48e1-aa89-af084e6765e2",
+      "name": "Check Apify Run",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evaluate Run Status: turn Apify's status into simple labels and count the checks\n\nconst MAX_POLLS = 30;   // 30 checks x 20 seconds = 10 minutes (matches Apify timeout of 600 seconds)\n\nconst run = $input.first().json.data;\nconst attempt = $runIndex + 1;\n\nconst RUNNING = ['READY', 'RUNNING', 'TIMING-OUT', 'ABORTING'];\nconst FAILED = ['FAILED', 'TIMED-OUT', 'ABORTED'];\n\nlet label;\nif (run.status === 'SUCCEEDED') {\n  label = 'succeeded';\n} else if (FAILED.includes(run.status)) {\n  label = 'failed';\n} else if (RUNNING.includes(run.status)) {\n  label = attempt >= MAX_POLLS ? 'poll_limit_reached' : 'running';\n} else {\n  label = 'unknown_status';\n}\n\nreturn [{\n  json: {\n    run_id: run.id,\n    apify_status: run.status,\n    status_message: run.statusMessage || null,\n    normalized_status: label,\n    poll_attempt: attempt,\n    dataset_id: run.defaultDatasetId || null,\n    run_cost_usd: run.usageTotalUsd || null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4992,
+        -2272
+      ],
+      "id": "e80c0a8f-5ea7-4760-82a6-2743507a46e7",
+      "name": "Evaluate Run Status"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.normalized_status }}",
+                    "rightValue": "running",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3e7de156-80d9-4c5b-87ac-545a80d34b4f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Running"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7c5539ce-b9c7-4bf8-94da-987614ef2ac1",
+                    "leftValue": "={{ $json.normalized_status }}",
+                    "rightValue": "succeeded",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Succeeded"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        160,
+        -1744
+      ],
+      "id": "705e6d9a-6c19-49fc-8418-9d4c77486688",
+      "name": "Route Run Status"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.apify.com/v2/datasets/{{ $json.dataset_id }}/items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        736,
+        -1616
+      ],
+      "id": "a0ddb4b3-74cd-4736-86cc-e45e529df0d2",
+      "name": "Fetch Dataset Items",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map Extracted Records: turn Apify pages into ONE clean record per company\n\nconst base = $('Build Apify Input').first().json;\nconst companies = base.companies || [];\nconst pages = $input.all().map(i => i.json);\n\nfunction getHost(url) {\n  const m = String(url || '').match(/^https?:\\/\\/([^\\/?#:]+)/i);\n  return m ? m[1].toLowerCase().replace(/^www\\./, '') : null;\n}\n\nfunction clean(text) {\n  const t = String(text || '').replace(/\\s+/g, ' ').trim();\n  return t === '' ? null : t;\n}\n\n// Walk through the structured data (jsonLd) and collect phones, emails, addresses\nfunction collect(node, found) {\n  if (Array.isArray(node)) {\n    node.forEach(n => collect(n, found));\n    return;\n  }\n  if (node && typeof node === 'object') {\n    for (const key of Object.keys(node)) {\n      const v = node[key];\n      if (key === 'telephone' && typeof v === 'string') {\n        found.phones.add(v.trim());\n      } else if (key === 'email' && typeof v === 'string') {\n        found.emails.add(v.trim());\n      } else if (key === 'address' && v && typeof v === 'object' && !Array.isArray(v)) {\n        found.addresses.push(v);\n      } else {\n        collect(v, found);\n      }\n    }\n  }\n}\n\nfunction formatAddress(a) {\n  const region = [a.addressRegion, a.postalCode]\n    .filter(x => typeof x === 'string' && x.trim() !== '')\n    .join(' ');\n  const parts = [a.streetAddress, a.addressLocality, region, a.addressCountry]\n    .filter(x => typeof x === 'string' && x.trim() !== '');\n  return parts.length ? parts.join(', ') : null;\n}\n\nconst out = [];\n\nfor (const c of companies) {\n  // All pages that belong to this company, homepage (lowest depth) first\n  const mine = pages\n    .filter(p => {\n      const host = getHost(p.url);\n      return host && (host === c.normalized_domain || host.endsWith('.' + c.normalized_domain));\n    })\n    .sort((a, b) => {\n      const da = a.crawl && typeof a.crawl.depth === 'number' ? a.crawl.depth : 99;\n      const db = b.crawl && typeof b.crawl.depth === 'number' ? b.crawl.depth : 99;\n      return da - db;\n    });\n\n  const record = {\n    request_id: base.request_id,\n    chat_id: base.chat_id,\n    company_name: c.company_name,\n    website_url: c.website_url,\n    normalized_domain: c.normalized_domain,\n    page_title: null,\n    description: null,\n    location: null,\n    public_contact: null,\n    source_urls: [],\n    text_excerpt: null,\n    pages_received: mine.length,\n    scrape_status: 'scrape_failed',\n    scrape_error: 'No page returned by Apify for this website'\n  };\n\n  const page = mine[0];\n  if (page) {\n    const status = page.crawl ? page.crawl.httpStatusCode : null;\n    if (status === 200) {\n      const meta = page.metadata || {};\n      const found = { phones: new Set(), emails: new Set(), addresses: [] };\n      collect(meta.jsonLd, found);\n\n      const contactParts = [];\n      if (found.phones.size) contactParts.push('phone: ' + Array.from(found.phones).join(', '));\n      if (found.emails.size) contactParts.push('email: ' + Array.from(found.emails).join(', '));\n\n      const loaded = page.crawl.loadedUrl || page.url;\n      const text = clean(page.text);\n\n      record.page_title = clean(meta.title);\n      record.description = clean(meta.description);\n      record.location = found.addresses.length ? formatAddress(found.addresses[0]) : null;\n      record.public_contact = contactParts.length ? contactParts.join(' | ') : null;\n      record.source_urls = [String(loaded).split(/[?#]/)[0]];\n      record.text_excerpt = text ? text.slice(0, 800) : null;\n      record.scrape_status = 'scraped';\n      record.scrape_error = null;\n    } else {\n      record.scrape_error = 'HTTP status ' + status;\n    }\n  }\n\n  out.push({ json: record });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -1616
+      ],
+      "id": "05a93b7d-e317-4a5f-9401-d55994f73e4e",
+      "name": "Map Extracted Records"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-5-5",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-5-5"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Company name: {{ $json.company_name || '(not known)' }}\nWebsite: {{ $json.website_url }}\nPage title: {{ $json.page_title }}\nDescription: {{ $json.description }}\n\nWebsite text (first part):\n{{ ($json.text_excerpt || '').slice(0, 1500) }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are an industry classification assistant for a company research workflow.  Your job has two parts, using ONLY the evidence provided (page title, description, website text): (1) Classify ONE company into exactly ONE category. (2) Confirm the company's own name, but only if the evidence clearly shows it.  Allowed categories (use these exact spellings): - Skincare - Hair care - Makeup & cosmetics - Personal care - Other - Unknown  Rules: 1. Choose only from the allowed list. Never invent a new category. 2. Use \"Unknown\" if the evidence is missing, too short, or does not clearly show what the company sells or does. 3. Use \"Other\" only if the evidence is clear but the business does not fit any listed category. 4. Do not guess from the company name alone. 5. If the company sells across three or more categories and no single category is clearly the main focus, choose \"Personal care\" and set confidence to \"medium\". Never pick a category only because it appears first in a list. 6. classification_confidence must be one of: \"high\", \"medium\", \"low\". 7. classification_evidence must be one short sentence (maximum 25 words) that points to the evidence you used. Do not copy long text. 8. Use confidence \"high\" only when the evidence clearly and directly supports the category. If your evidence sentence needs hedging words such as \"adjacent\", \"or\", or \"also\", use \"medium\". 9. company_name: return the company's own name exactly as it is written in the page title, description or website text. Remove taglines, words like \"Home\" or \"Welcome\", and separators such as \"|\" or \"-\". If the input says \"Company name: (not known)\" and the name is not clearly shown in the evidence, return null. Never guess the name from the website address and never invent a name. 10. If a real company name is already given in the input (anything other than \"(not known)\"), return that same name unchanged.  Output format: return ONLY a valid JSON object. No explanation, no markdown, no code fences.  {\"industry_category\":\"<one allowed category>\",\"classification_confidence\":\"high|medium|low\",\"classification_evidence\":\"<one short sentence>\",\"company_name\":\"<name or null>\"}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        -1616
+      ],
+      "id": "0d977244-ddbe-4bad-a500-0ab18eafdb20",
+      "name": "Classify Industry",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Industry Classification\n// Mode: Run Once for All Items\n\nconst ALLOWED_CATEGORIES = [\n  'Skincare',\n  'Hair care',\n  'Makeup & cosmetics',\n  'Personal care',\n  'Other',\n  'Unknown'\n];\nconst ALLOWED_CONFIDENCE = ['high', 'medium', 'low'];\nconst BAD_NAME_VALUES = ['null', 'unknown', 'n/a', 'none', '(not known)'];\n\nconst aiItems = $input.all();\nconst sourceItems = $('Map Extracted Records').all();\n\nconst output = [];\n\nfor (let i = 0; i < aiItems.length; i++) {\n  const source = sourceItems[i] ? sourceItems[i].json : {};\n  const content = (aiItems[i].json && aiItems[i].json.content) || [];\n\n  // Find the text block by type (thinking block may come first)\n  const textBlocks = content.filter(c => c && c.type === 'text');\n  const rawText = textBlocks.length > 0 ? String(textBlocks[textBlocks.length - 1].text || '') : '';\n\n  let category = 'Unknown';\n  let confidence = 'low';\n  let evidence = null;\n  let proposedName = null;\n  let parseError = null;\n\n  if (!rawText) {\n    parseError = 'No text block in AI response';\n  } else {\n    try {\n      // Remove markdown code fences if the model added them\n      const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();\n      const parsed = JSON.parse(cleaned);\n\n      if (ALLOWED_CATEGORIES.includes(parsed.industry_category)) {\n        category = parsed.industry_category;\n      } else {\n        parseError = 'Category not in allowed list: ' + String(parsed.industry_category);\n      }\n\n      if (ALLOWED_CONFIDENCE.includes(parsed.classification_confidence)) {\n        confidence = parsed.classification_confidence;\n      } else {\n        confidence = 'low';\n      }\n\n      evidence = parsed.classification_evidence ? String(parsed.classification_evidence) : null;\n      proposedName = typeof parsed.company_name === 'string' ? parsed.company_name : null;\n    } catch (e) {\n      parseError = 'JSON parse failed: ' + e.message;\n    }\n  }\n\n  // Company name: keep an existing name; fill an empty one only if the page text proves it\n  const existingName = source.company_name ? String(source.company_name).trim() : '';\n  let finalName = existingName || null;\n  let nameSource = existingName ? 'existing' : null;\n\n  if (!existingName && proposedName) {\n    const candidate = proposedName.replace(/\\s+/g, ' ').trim();\n    const evidenceText = [source.page_title, source.description, source.text_excerpt]\n      .filter(Boolean)\n      .join(' ')\n      .replace(/\\s+/g, ' ')\n      .toLowerCase();\n\n    const lengthOk = candidate.length >= 2 && candidate.length <= 100;\n    const notBad = !BAD_NAME_VALUES.includes(candidate.toLowerCase());\n    const foundInPage = evidenceText.includes(candidate.toLowerCase());\n\n    if (lengthOk && notBad && foundInPage) {\n      finalName = candidate;\n      nameSource = 'ai_from_page';\n    }\n  }\n\n  // Decide if a human should review this record\n  let needsReview = false;\n  let reviewReason = null;\n\n  if (parseError) {\n    needsReview = true;\n    reviewReason = parseError;\n  } else if (category === 'Unknown') {\n    needsReview = true;\n    reviewReason = 'Industry could not be determined from the evidence';\n  } else if (confidence === 'low') {\n    needsReview = true;\n    reviewReason = 'Low classification confidence';\n  } else if (confidence === 'medium') {\n    needsReview = true;\n    reviewReason = 'Medium classification confidence - please verify the category';\n  }\n\n  output.push({\n    json: {\n      ...source,\n      company_name: finalName,\n      company_name_source: nameSource,\n      industry_category: category,\n      classification_confidence: confidence,\n      classification_evidence: evidence,\n      classification_needs_review: needsReview,\n      classification_review_reason: reviewReason,\n      classification_error: parseError\n    }\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        -1616
+      ],
+      "id": "6a4cf9f0-49b1-4520-b6de-b51fd043caa7",
+      "name": "Parse Industry Classification"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate & Set Status\n// Mode: Run Once for All Items\n\nfunction cleanText(value) {\n  if (value === null || value === undefined) return null;\n  const t = String(value).replace(/\\s+/g, ' ').trim();\n  return t === '' ? null : t;\n}\n\nconst items = $input.all();\nconst nowIso = new Date().toISOString();\nconst output = [];\n\nfor (const item of items) {\n  const d = item.json;\n\n  const companyName = cleanText(d.company_name);\n  const websiteUrl = cleanText(d.website_url);\n  const domain = cleanText(d.normalized_domain);\n  const description = cleanText(d.description);\n\n  const reasons = [];\n  const errors = [];\n  let status = 'completed';\n\n  // Rule 1: website / domain must exist and look like a real domain\n  const domainLooksValid = domain && /^[a-z0-9.-]+\\.[a-z]{2,}$/i.test(domain);\n  const urlLooksValid = websiteUrl && /^https?:\\/\\//i.test(websiteUrl);\n  if (!domainLooksValid || !urlLooksValid) {\n    status = 'validation_failed';\n    reasons.push('Missing or invalid website URL / domain');\n  }\n\n  // Rule 2: company name must exist\n  if (!companyName) {\n    status = 'validation_failed';\n    reasons.push('Missing company name');\n  }\n\n  // Rule 3: scrape must have succeeded\n  if (d.scrape_status !== 'scraped') {\n    if (status !== 'validation_failed') status = 'scrape_failed';\n    reasons.push('Website scrape did not succeed');\n    if (d.scrape_error) errors.push('scrape: ' + cleanText(d.scrape_error));\n  }\n\n  // Rule 4: needs_review conditions (only if nothing worse happened)\n  if (d.classification_needs_review) {\n    if (status === 'completed') status = 'needs_review';\n    reasons.push(cleanText(d.classification_review_reason) || 'Classification needs review');\n  }\n  if (d.classification_error) {\n    errors.push('classification: ' + cleanText(d.classification_error));\n  }\n  if (!description) {\n    if (status === 'completed') status = 'needs_review';\n    reasons.push('Missing company description');\n  }\n\n  // Source URLs: keep as array, also provide a sheet-friendly text version\n  const sourceList = Array.isArray(d.source_urls)\n    ? d.source_urls.filter(u => u)\n    : (d.source_urls ? [String(d.source_urls)] : []);\n  const sourceUrlsText = sourceList.length > 0\n    ? sourceList.join(' | ')\n    : (websiteUrl || null);\n\n  output.push({\n    json: {\n      request_id: d.request_id,\n      chat_id: d.chat_id,\n      company_name: companyName,\n      website_url: websiteUrl,\n      normalized_domain: domainLooksValid ? domain.toLowerCase() : null,\n      industry_category: d.industry_category || 'Unknown',\n      classification_confidence: d.classification_confidence || 'low',\n      classification_evidence: cleanText(d.classification_evidence),\n      description: description,\n      products_services: null,\n      location: cleanText(d.location),\n      public_contact: cleanText(d.public_contact),\n      source_urls: sourceUrlsText,\n      processing_status: status,\n      review_reason: reasons.length > 0 ? reasons.join('; ') : null,\n      last_error: errors.length > 0 ? errors.join(' | ') : null,\n      last_updated_at: nowIso\n    }\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -1616
+      ],
+      "id": "4cf99913-08c5-402c-8543-b6f973556af3",
+      "name": "Validate & Set Status"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Companies"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "normalized_domain",
+              "lookupValue": "={{ $json.normalized_domain }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1984,
+        -1616
+      ],
+      "id": "0913d452-3688-45f3-906e-6778c9040916",
+      "name": "Lookup Existing Domain",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide Insert or Update\n// Mode: Run Once for All Items\n\nfunction isBlank(v) {\n  return v === null || v === undefined || String(v).trim() === '';\n}\nfunction pick(newVal, oldVal) {\n  return isBlank(newVal) ? (isBlank(oldVal) ? null : oldVal) : newVal;\n}\n\nconst records = $('Validate & Set Status').all().map(i => i.json);\n\n// Lookup rows: ignore the empty placeholder item (no domain / no row_number)\nconst lookupRows = $input.all()\n  .map(i => i.json)\n  .filter(r => r && !isBlank(r.normalized_domain) && r.row_number);\n\n// Group existing rows by domain\nconst rowsByDomain = {};\nfor (const row of lookupRows) {\n  const key = String(row.normalized_domain).trim().toLowerCase();\n  if (!rowsByDomain[key]) rowsByDomain[key] = [];\n  rowsByDomain[key].push(row);\n}\n\nconst nowIso = new Date().toISOString();\nconst output = [];\n\nfor (const rec of records) {\n  const domainKey = isBlank(rec.normalized_domain)\n    ? null\n    : String(rec.normalized_domain).trim().toLowerCase();\n\n  // Case 1: record has no usable domain -> cannot be matched or saved safely\n  if (!domainKey) {\n    output.push({ json: { ...rec, action: 'invalid_record', row_number: null } });\n    continue;\n  }\n\n  const matches = rowsByDomain[domainKey] || [];\n\n  // Case 2: no match -> insert\n  if (matches.length === 0) {\n    output.push({\n      json: {\n        ...rec,\n        action: 'insert',\n        row_number: null,\n        first_seen_at: nowIso,\n        last_updated_at: nowIso\n      }\n    });\n    continue;\n  }\n\n  // Case 3: more than one match -> do not guess, flag for review\n  if (matches.length > 1) {\n    const rowNumbers = matches.map(m => m.row_number).join(', ');\n    output.push({\n      json: {\n        ...rec,\n        action: 'duplicate_in_sheet',\n        row_number: null,\n        processing_status: 'needs_review',\n        review_reason: 'Domain appears in multiple sheet rows: ' + rowNumbers,\n        last_updated_at: nowIso\n      }\n    });\n    continue;\n  }\n\n  // Case 4: exactly one match -> update, but never replace good data with blanks\n  const old = matches[0];\n\n  // Merge source URLs (old + new), no repeats\n  const oldUrls = isBlank(old.source_urls) ? [] : String(old.source_urls).split('|').map(s => s.trim()).filter(Boolean);\n  const newUrls = isBlank(rec.source_urls) ? [] : String(rec.source_urls).split('|').map(s => s.trim()).filter(Boolean);\n  const mergedUrls = Array.from(new Set([...oldUrls, ...newUrls]));\n\n  // Keep the old category if the new one is Unknown and the old one is useful\n  const newIndustry = rec.industry_category;\n  const keepOldIndustry = (isBlank(newIndustry) || newIndustry === 'Unknown') && !isBlank(old.industry_category) && old.industry_category !== 'Unknown';\n\n  output.push({\n    json: {\n      request_id: rec.request_id,\n      chat_id: rec.chat_id,\n      action: 'update',\n      row_number: old.row_number,\n      company_name: pick(rec.company_name, old.company_name),\n      website_url: pick(rec.website_url, old.website_url),\n      normalized_domain: rec.normalized_domain,\n      industry_category: keepOldIndustry ? old.industry_category : pick(newIndustry, old.industry_category),\n      classification_confidence: keepOldIndustry ? pick(old.classification_confidence, null) : pick(rec.classification_confidence, old.classification_confidence),\n      classification_evidence: keepOldIndustry ? pick(old.classification_evidence, null) : pick(rec.classification_evidence, old.classification_evidence),\n      description: pick(rec.description, old.description),\n      products_services: pick(rec.products_services, old.products_services),\n      location: pick(rec.location, old.location),\n      public_contact: pick(rec.public_contact, old.public_contact),\n      source_urls: mergedUrls.length > 0 ? mergedUrls.join(' | ') : null,\n      processing_status: rec.processing_status,\n      review_reason: rec.review_reason,\n      first_seen_at: isBlank(old.first_seen_at) ? nowIso : old.first_seen_at,\n      last_updated_at: nowIso,\n      last_error: rec.last_error\n    }\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        -1616
+      ],
+      "id": "0f743475-f61b-4d2a-a95b-6cfc1f773a2d",
+      "name": "Decide Insert or Update"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "insert",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b9d9608c-6c67-4694-9b85-2c31dcbda5a4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Insert"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "92f82fa1-950a-4631-9451-c72afcc6aeff",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Update"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2432,
+        -1632
+      ],
+      "id": "f4519649-30ee-41de-b3d4-7f5ae3f90420",
+      "name": "Route Sheet Action"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Companies"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website_url": "={{ $json.website_url }}",
+            "normalized_domain": "={{ $json.normalized_domain }}",
+            "industry_category": "={{ $json.industry_category }}",
+            "classification_confidence": "={{ $json.classification_confidence }}",
+            "classification_evidence": "={{ $json.classification_evidence }}",
+            "description": "={{ $json.description }}",
+            "products_services": "={{ $json.products_services }}",
+            "location": "={{ $json.location }}",
+            "public_contact": "={{ $json.public_contact }}",
+            "source_urls": "={{ $json.source_urls }}",
+            "processing_status": "={{ $json.processing_status }}",
+            "review_reason": "={{ $json.review_reason }}",
+            "first_seen_at": "={{ $json.first_seen_at }}",
+            "last_updated_at": "={{ $json.last_updated_at }}",
+            "last_error": "={{ $json.last_error }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website_url",
+              "displayName": "website_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "normalized_domain",
+              "displayName": "normalized_domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry_category",
+              "displayName": "industry_category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "classification_confidence",
+              "displayName": "classification_confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "classification_evidence",
+              "displayName": "classification_evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "products_services",
+              "displayName": "products_services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "public_contact",
+              "displayName": "public_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_urls",
+              "displayName": "source_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processing_status",
+              "displayName": "processing_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "review_reason",
+              "displayName": "review_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "first_seen_at",
+              "displayName": "first_seen_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_updated_at",
+              "displayName": "last_updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2656,
+        -1712
+      ],
+      "id": "20fd7a84-3eb8-404c-b7fd-eb532dba1913",
+      "name": "Append Company",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Companies"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "normalized_domain": "={{ $json.normalized_domain }}",
+            "company_name": "={{ $json.company_name }}",
+            "website_url": "={{ $json.website_url }}",
+            "industry_category": "={{ $json.industry_category }}",
+            "classification_confidence": "={{ $json.classification_confidence }}",
+            "classification_evidence": "={{ $json.classification_evidence }}",
+            "description": "={{ $json.description }}",
+            "products_services": "={{ $json.products_services }}",
+            "location": "={{ $json.location }}",
+            "public_contact": "={{ $json.public_contact }}",
+            "source_urls": "={{ $json.source_urls }}",
+            "processing_status": "={{ $json.processing_status }}",
+            "review_reason": "={{ $json.review_reason }}",
+            "first_seen_at": "={{ $json.first_seen_at }}",
+            "last_updated_at": "={{ $json.last_updated_at }}",
+            "last_error": "={{ $json.last_error }}"
+          },
+          "matchingColumns": [
+            "normalized_domain"
+          ],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "website_url",
+              "displayName": "website_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "normalized_domain",
+              "displayName": "normalized_domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "industry_category",
+              "displayName": "industry_category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classification_confidence",
+              "displayName": "classification_confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classification_evidence",
+              "displayName": "classification_evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "products_services",
+              "displayName": "products_services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "public_contact",
+              "displayName": "public_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source_urls",
+              "displayName": "source_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "processing_status",
+              "displayName": "processing_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "review_reason",
+              "displayName": "review_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "first_seen_at",
+              "displayName": "first_seen_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_updated_at",
+              "displayName": "last_updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_error",
+              "displayName": "last_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2656,
+        -1520
+      ],
+      "id": "f230b740-5bd6-4b05-8cf3-0b04611f5b3c",
+      "name": "Update Company",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Review Log\n// Mode: Run Once for All Items\n// Maps \"website not found\" records to the Errors tab columns.\n\nconst WORKFLOW_NAME = 'Company Discovery and Enrichment';\n\nconst items = $input.all();\nconst nowIso = new Date().toISOString();\nconst executionId = String($execution.id || 'manual-test');\n\nconst output = [];\n\nfor (const item of items) {\n  const d = item.json;\n  const companyName = d.company_name ? String(d.company_name).trim() : 'Unknown company';\n  const reason = d.review_reason ? String(d.review_reason).trim() : 'Website not found';\n\n  output.push({\n    json: {\n      // Errors tab columns\n      timestamp: nowIso,\n      workflow_name: WORKFLOW_NAME,\n      execution_id: executionId,\n      stage: 'website_discovery',\n      company_url: d.website_url || null,\n      error_code: 'WEBSITE_NOT_FOUND',\n      sanitized_error_message: 'Company \"' + companyName + '\": ' + reason,\n      retry_count: 0,\n      resolved_status: 'open',\n      // Kept for later steps (Telegram summary), not written to the sheet\n      request_id: d.request_id || null,\n      chat_id: d.chat_id || null\n    }\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3344,
+        -2592
+      ],
+      "id": "f139bf72-5ef7-4283-bfbf-601bb9eeb669",
+      "name": "Prepare Review Log"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 158600921,
+          "mode": "list",
+          "cachedResultName": "Errors"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "stage": "={{ $json.stage }}",
+            "company_url": "={{ $json.company_url }}",
+            "error_code": "={{ $json.error_code }}",
+            "sanitized_error_message": "={{ $json.sanitized_error_message }}",
+            "retry_count": "={{ $json.retry_count }}",
+            "resolved_status": "={{ $json.resolved_status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_url",
+              "displayName": "company_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_code",
+              "displayName": "error_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sanitized_error_message",
+              "displayName": "sanitized_error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resolved_status",
+              "displayName": "resolved_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3568,
+        -2592
+      ],
+      "id": "71612ed0-eb65-4026-b013-984a8d196c7a",
+      "name": "Log Review Items",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2880,
+        -1616
+      ],
+      "id": "899b0fe7-75e0-41b3-8b56-97bf4a4677de",
+      "name": "Combine Write Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Run Summary - Run Once for All Items\n\n// If a node did not run in this execution, return an empty list instead of crashing\nfunction safeAll(nodeName) {\n  try {\n    return $(nodeName).all();\n  } catch (e) {\n    return [];\n  }\n}\n\nconst cleaned = safeAll('Clean Company List');\nconst decided = safeAll('Decide Insert or Update');\nconst validated = safeAll('Validate & Set Status');\nconst reviewLog = safeAll('Prepare Review Log');\nconst requestItems = safeAll('Map Request');\n\nconst requestJson = requestItems.length > 0 ? requestItems[0].json : {};\n\nconst discovered = cleaned.length;\nconst inserted = decided.filter(i => i.json.action === 'insert').length;\nconst updated = decided.filter(i => i.json.action === 'update').length;\nconst needsReview = validated.filter(i => i.json.processing_status === 'needs_review').length;\nconst failed = validated.filter(i =>\n  ['scrape_failed', 'validation_failed'].includes(i.json.processing_status)\n).length;\nconst noWebsite = cleaned.filter(i => i.json.next_action === 'save_for_review').length;\n\nconst lines = [\n  'Company discovery finished',\n  'Request: ' + (requestJson.request_text || 'n/a'),\n  'Candidates found: ' + discovered,\n  'Saved as new: ' + inserted,\n  'Updated existing: ' + updated,\n  'Needs review (in Companies sheet): ' + needsReview,\n  'No website found (in Errors sheet): ' + noWebsite,\n  'Failed: ' + failed,\n  'Sheet: Company Discovery Data'\n];\n\nreturn [{\n  json: {\n    chat_id: requestJson.chat_id || null,\n    request_id: requestJson.request_id || null,\n    discovered,\n    inserted,\n    updated,\n    needs_review: needsReview,\n    no_website: noWebsite,\n    failed,\n    summary_text: lines.join('\\n')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3104,
+        -1616
+      ],
+      "id": "7f0077e2-9f6a-49a2-80d9-363177d23951",
+      "name": "Build Run Summary"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.summary_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3328,
+        -1616
+      ],
+      "id": "eb1f58b9-7000-4c6e-95bc-b8e69e20dff5",
+      "name": "Send Run Summary",
+      "webhookId": "8e672cba-0195-4a80-a66a-7e08b55e7cee"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Apify Failure - Run Once for All Items\n// Builds one Errors-sheet row + one Telegram alert text when an Apify run fails or polling gives up\n\nconst input = $input.first().json;\nconst requestJson = $('Map Request').first().json;\n\nconst status = input.normalized_status || 'unknown';\nconst errorCode = status === 'poll_limit_reached'\n  ? 'APIFY_POLL_LIMIT_REACHED'\n  : 'APIFY_RUN_FAILED';\n\n// Keep the message short and never include tokens or headers\nconst rawMessage = String(input.status_message || 'No status message').slice(0, 200);\nconst safeMessage = 'Apify run ' + status + ' (apify_status: ' + (input.apify_status || 'n/a') + '). ' + rawMessage;\n\nconst alertText = [\n  'Company discovery FAILED at the scraping step',\n  'Request: ' + (requestJson.request_text || 'n/a'),\n  'Reason: ' + errorCode.replace(/_/g, ' '),\n  'Poll attempts: ' + (input.poll_attempt || 'n/a'),\n  'Execution ID: ' + $execution.id,\n  'No company records were saved from this run. Please check the Errors sheet.'\n].join('\\n');\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    workflow_name: 'Company Discovery & Enrichment',\n    execution_id: String($execution.id),\n    stage: 'apify_scrape',\n    company_url: null,\n    error_code: errorCode,\n    sanitized_error_message: safeMessage,\n    retry_count: input.poll_attempt || 0,\n    resolved_status: 'open',\n    chat_id: requestJson.chat_id || null,\n    request_id: requestJson.request_id || null,\n    alert_text: alertText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -1216
+      ],
+      "id": "cc25749c-38f9-4d81-a43c-9034da393727",
+      "name": "Prepare Apify Failure"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 158600921,
+          "mode": "list",
+          "cachedResultName": "Errors"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "stage": "={{ $json.stage }}",
+            "company_url": "={{ $json.company_url }}",
+            "error_code": "={{ $json.error_code }}",
+            "sanitized_error_message": "={{ $json.sanitized_error_message }}",
+            "retry_count": "={{ $json.retry_count }}",
+            "resolved_status": "={{ $json.resolved_status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_url",
+              "displayName": "company_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_code",
+              "displayName": "error_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sanitized_error_message",
+              "displayName": "sanitized_error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "retry_count",
+              "displayName": "retry_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resolved_status",
+              "displayName": "resolved_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        -1312
+      ],
+      "id": "3dc85121-b429-4f10-a080-8853ada1c747",
+      "name": "Log Apify Failure",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.alert_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        -1120
+      ],
+      "id": "f7faa10d-50a3-42c8-b793-29acd110a4ab",
+      "name": "Send Failure Alert",
+      "webhookId": "809dfe11-ccec-4d1d-a077-a1fd730551a8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a014ea34-c042-4ff7-8166-ad5640dad91d",
+              "leftValue": "={{ $json.request_text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -272,
+        -2496
+      ],
+      "id": "3010f870-24e1-4b1f-9049-0314ea5a777e",
+      "name": "Has Text Message?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Please send a text message. Example: \"Find 20 logistics companies in Canada\".",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -2400
+      ],
+      "id": "9070628e-05d6-4072-a091-a963a5d78e89",
+      "name": "Ask Text Message",
+      "webhookId": "40231957-43ec-4510-94ac-4c8e472b8cb3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Map Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Request": {
+      "main": [
+        [
+          {
+            "node": "Authorize User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize User": {
+      "main": [
+        [
+          {
+            "node": "Has Text Message?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Is Request Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Request Valid?": {
+      "main": [
+        [
+          {
+            "node": "Search Companies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Companies": {
+      "main": [
+        [
+          {
+            "node": "Normalize Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Search Results": {
+      "main": [
+        [
+          {
+            "node": "Route by Result Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Result Type": {
+      "main": [
+        [
+          {
+            "node": "Combine Company Sources",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Company Names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Company Names": {
+      "main": [
+        [
+          {
+            "node": "Parse Company Names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Company Names": {
+      "main": [
+        [
+          {
+            "node": "Prepare Company Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Company Candidates": {
+      "main": [
+        [
+          {
+            "node": "Find Company Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Company Website": {
+      "main": [
+        [
+          {
+            "node": "Pick Company Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Company Website": {
+      "main": [
+        [
+          {
+            "node": "Combine Company Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Company Sources": {
+      "main": [
+        [
+          {
+            "node": "Clean Company List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Company List": {
+      "main": [
+        [
+          {
+            "node": "Has Website to Scrape?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Website to Scrape?": {
+      "main": [
+        [
+          {
+            "node": "Build Apify Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Review Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Apify Input": {
+      "main": [
+        [
+          {
+            "node": "Start Apify Crawl",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Apify Crawl": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Poll": {
+      "main": [
+        [
+          {
+            "node": "Check Apify Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Apify Run": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Run Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Run Status": {
+      "main": [
+        [
+          {
+            "node": "Route Run Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Run Status": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Poll",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Dataset Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Apify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Dataset Items": {
+      "main": [
+        [
+          {
+            "node": "Map Extracted Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Extracted Records": {
+      "main": [
+        [
+          {
+            "node": "Classify Industry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Industry": {
+      "main": [
+        [
+          {
+            "node": "Parse Industry Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Industry Classification": {
+      "main": [
+        [
+          {
+            "node": "Validate & Set Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Set Status": {
+      "main": [
+        [
+          {
+            "node": "Lookup Existing Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Existing Domain": {
+      "main": [
+        [
+          {
+            "node": "Decide Insert or Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Insert or Update": {
+      "main": [
+        [
+          {
+            "node": "Route Sheet Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Sheet Action": {
+      "main": [
+        [
+          {
+            "node": "Append Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Review Log": {
+      "main": [
+        [
+          {
+            "node": "Log Review Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Company": {
+      "main": [
+        [
+          {
+            "node": "Combine Write Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Company": {
+      "main": [
+        [
+          {
+            "node": "Combine Write Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Write Results": {
+      "main": [
+        [
+          {
+            "node": "Build Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Run Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Apify Failure": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Apify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Failure Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Has Text Message?": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "04327869-dca4-4a3e-894a-dfd695e19408",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "TeCX8wKtAHwlBdKP",
+  "tags": []
+}
